@@ -84,7 +84,7 @@ void SPI_send16b(SPI_TypeDef* SPIx, uint16_t *pBuff, uint16_t Len)
   for (uint16_t i = 0; i < Len; i++)
   {
     SPI_I2S_SendData(SPIx, *(pBuff++));
-    while (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_BSY) == SET)  {}
+    while (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_BSY) == SET) ;
   }
 }
 //==============================================================================
@@ -98,7 +98,7 @@ void SPI_send8b(SPI_TypeDef* SPIx, uint8_t *pBuff, uint16_t Len)
   for (uint16_t i = 0; i < Len; i++)
   {
     SPI_I2S_SendData(SPIx, *(pBuff++));
-    while (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_BSY) == SET)  {}
+    while (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_BSY) == SET) ;
   }
 }
 //==============================================================================
@@ -111,7 +111,7 @@ void SPI_recv16b(SPI_TypeDef* SPIx, uint16_t *pBuff, uint16_t Len)
 {
   for (uint16_t i = 0; i < Len; i++)
   {
-    while (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET)// { ; }
+    while (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) ;
     *(pBuff++) = SPI_I2S_ReceiveData(SPIx);
   }
 }//==============================================================================
@@ -124,7 +124,7 @@ void SPI_recv8b(SPI_TypeDef* SPIx, uint8_t *pBuff, uint16_t Len)
 {
   for (uint16_t i = 0; i < Len; i++)
   {
-    while (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET)// { ; }
+    while (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) ;
     *(pBuff++) = SPI_I2S_ReceiveData(SPIx);
   }
 }
