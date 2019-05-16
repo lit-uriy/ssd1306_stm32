@@ -19,48 +19,134 @@
 #include <string.h>
 
 
-#define SSD1306_RESET_HIGH()    GPIO_WriteBit(SSD1306_Reset_Port, SSD1306_Reset_Pin, Bit_SET)
-#define SSD1306_RESET_LOW()     GPIO_WriteBit(SSD1306_Reset_Port, SSD1306_Reset_Pin, Bit_RESET)
-#define SSD1306_DC_HIGH()       GPIO_WriteBit(SSD1306_DC_Port, SSD1306_DC_Pin, Bit_SET)
-#define SSD1306_DC_LOW()        GPIO_WriteBit(SSD1306_DC_Port, SSD1306_DC_Pin, Bit_RESET)
+//==============================================================================
+// Интерфейс подключения дисплея      
+//==============================================================================
+#define IfMode_Par8080  0       // Параллельный интерфейс 8080 8-бит
+#define IfMode_Par6800  1       // Параллельный интерфейс 6800 8-бит
+#define IfMode_SPI_3w   2       // SPI по 3 линиям (CS, SCLK, MOSI)
+#define IfMode_SPI_4w   3       // SPI по 4 линиям (CS, SCLK, MOSI, D/C)
+#define IfMode_I2C      4       // I2C
 
-#if (SSD1306_CSPinUsed)
-  #define SSD1306_CS_HIGH()     GPIO_WriteBit(SSD1306_CS_Port, SSD1306_CS_Pin, Bit_SET)
-  #define SSD1306_CS_LOW()      GPIO_WriteBit(SSD1306_CS_Port, SSD1306_CS_Pin, Bit_RESET)
+#define IfMode          IfMode_SPI_4w
+
+//==============================================================================
+// Настройки подключения к дисплею
+//==============================================================================
+#define ResetPinUsed    1       // Используется управление пином Reset ssd1306      
+#define Reset_Port      GPIOA
+#define Reset_Pin       GPIO_Pin_4
+
+#if (IfMode == IfMode_I2C)      // Параметры работы по I2C
+  // i2c-адрес контроллера дисплея. Зависит от состояния ножки SA0 (она же D/C). 0x3C или 0x3D
+  #define I2C_addr      0x3C    // 0x3D;   // 7-битный i2c-адрес контроллера дисплея ssd1306      
+  #define I2C_periph    I2C1    // I2C1 или I2C2        
+  #define I2C_clock     400000  // Частота работы I2C        
+  #define I2C_timeout   1000    // 1000    // Таймаут ожидания выполнения операций на i2c      
+#elif (IfMode == IfMode_SPI_4w) // Параметры работы по SPI-4w
+  #define SPI_periph    SPI1    // SPI1 или SPI2        
+  #define CSPinUsed     0       // Используется управление пином CS ssd1306      
+  #define CS_Port       GPIOA
+  #define CS_Pin        GPIO_Pin_2
+  #define DC_Port       GPIOA
+  #define DC_Pin        GPIO_Pin_3
+#elif (IfMode == IfMode_SPI_3w)       // Параметры работы по SPI-3w
+  #error Работа по выбранному интерфейсу не поддерживается. Аппаратный SPI не работает в 9-битном режиме
 #else
-  #define SSD1306_CS_HIGH()     ;
-  #define SSD1306_CS_LOW()      ;
+  #error Работа по выбранному интерфейсу ещё не реализована (см. константу SSD1306_IfMode)
 #endif
 
+#define RESET_HIGH()    GPIO_WriteBit(Reset_Port, Reset_Pin, Bit_SET)
+#define RESET_LOW()     GPIO_WriteBit(Reset_Port, Reset_Pin, Bit_RESET)
+#define DC_HIGH()       GPIO_WriteBit(DC_Port, DC_Pin, Bit_SET)
+#define DC_LOW()        GPIO_WriteBit(DC_Port, DC_Pin, Bit_RESET)
+
+#if (CSPinUsed)
+  #define CS_HIGH()     GPIO_WriteBit(CS_Port, CS_Pin, Bit_SET)
+  #define CS_LOW()      GPIO_WriteBit(CS_Port, CS_Pin, Bit_RESET)
+#else
+  #define CS_HIGH()     ;
+  #define CS_LOW()      ;
+#endif
+//==============================================================================
+
+// Режимы автоматического сдвига указателя в памяти кадра ssd1306
+#define SSD1306_Adressing_Horizontal            0       // Сначала инкремент по горизонтали, затем инкремент по вертикали
+#define SSD1306_Adressing_Vertical              1       // Сначала инкремент по вертикали, затем инкремент по горизонтали
+#define SSD1306_Adressing_Page                  2       // Инкремент только по горизонтали
+
+//==============================================================================
+// Коды команд дисплея
+//==============================================================================
+// Команды из раздела Fundamental
+#define CMD_SetContrast                 0x81
+#define CMD_AllPixRAM                   0xA4
+#define CMD_AllPixOn                    0xA5
+#define CMD_SetInverseOff               0xA6
+#define CMD_SetInverseOn                0xA7
+#define CMD_Sleep                       0xAE
+#define CMD_Wake                        0xAF
+#define CMD_Lock                        0xFD
+// Команды из раздела Scrolling
+#define CMD_DeactivateScroll            0x2E
+// Команды из раздела Addressing Setting
+// Команда выбора режима автосдвига указателя в памяти кадра
+#define CMD_SetMemAdressingMode         0x20    
+// Команды выбора диапазона изменения страницы и колонки при автосдвиге указателя в памяти кадра
+// Применяется для режимов автосдвига SSD1306_Adressing_Horizontal и SSD1306_Adressing_Vertical
+#define CMD_SetColumnAddr               0x21
+#define CMD_SetPageAddr                 0x22
+// Команды выбора страницы и диапазона изменения колонки при автосдвиге указателя в памяти кадра
+// Применяется для режима автосдвига SSD1306_Adressing_Page
+#define CMD_PageAddrMode_SetPage        0xB0
+#define CMD_PageAddrMode_StartColumnLo  0x00
+#define CMD_PageAddrMode_StartColumnHi  0x10
+
+// Команды из раздела Hardware Configuration
+#define CMD_SetDisplayStartLine         0x40
+#define CMD_SetSegmentRemap             0xA0
+#define CMD_SetMultiplexRatio           0xA8
+#define CMD_SetCOMoutScanDirection      0xC0 
+#define CMD_SetDisplayOffset            0xD3
+#define CMD_SetCOMPinsConfig            0xDA
+  
+// Команды из раздела Timing & Driving Scheme Setting
+#define CMD_SetDisplayClockDivider      0xD5
+#define CMD_SetPrechargePeriod          0xD9
+#define CMD_SetVCOMHDeselectLevel       0xDB
+
+// Команды из раздела Charge Pump
+#define CMD_ChargePumpSetting           0x8D
+//==============================================================================
 
 // Размеры дисплея в пикселях
-uint8_t SSD1306_Height;
-uint8_t SSD1306_Width;
+static uint8_t Height;
+static uint8_t Width;
 
 
 //==============================================================================
 // Процедура передаёт команду с аргументами в ssd1306
 //==============================================================================
-void SSD1306_SendCommand(uint8_t Cmd, uint8_t *pBuff, uint16_t BuffLen)
+static void SendCommand(uint8_t Cmd, uint8_t *pBuff, uint16_t BuffLen)
 {
-#if (SSD1306_IfMode == SSD1306_IfMode_I2C)
+#if (IfMode == IfMode_I2C)
   uint8_t tmpBuff[2];
   tmpBuff[0] = 0x00;    // Control byte (Co = 0, D/A = 0)
   tmpBuff[1] = Cmd;     // Команда
   
-  int8_t err = i2cm_Start(SSD1306_I2C_periph, SSD1306_I2C_addr, 0, SSD1306_I2C_timeout);
+  int8_t err = i2cm_Start(I2C_periph, I2C_addr, 0, I2C_timeout);
   if (!err)
   {
-    i2cm_WriteBuff(SSD1306_I2C_periph, tmpBuff, 2, SSD1306_I2C_timeout);
-    i2cm_WriteBuff(SSD1306_I2C_periph, pBuff, BuffLen, SSD1306_I2C_timeout);
+    i2cm_WriteBuff(I2C_periph, tmpBuff, 2, I2C_timeout);
+    i2cm_WriteBuff(I2C_periph, pBuff, BuffLen, I2C_timeout);
   }
-  i2cm_Stop(SSD1306_I2C_periph, SSD1306_I2C_timeout);
-#elif (SSD1306_IfMode == SSD1306_IfMode_SPI_4w)       // Параметры работы по SPI-4w
-  SSD1306_DC_LOW();
-  SSD1306_CS_LOW();
-  SPI_send8b(SSD1306_SPI_periph, &Cmd, 1);
-  SPI_send8b(SSD1306_SPI_periph, pBuff, BuffLen);
-  SSD1306_CS_HIGH();
+  i2cm_Stop(I2C_periph, I2C_timeout);
+#elif (IfMode == IfMode_SPI_4w)       // Параметры работы по SPI-4w
+  DC_LOW();
+  CS_LOW();
+  SPI_send8b(SPI_periph, &Cmd, 1);
+  SPI_send8b(SPI_periph, pBuff, BuffLen);
+  CS_HIGH();
 #else   
   // Остальные интерфейсы работы с ssd1306 пока не поддерживаются
 #endif
@@ -71,24 +157,24 @@ void SSD1306_SendCommand(uint8_t Cmd, uint8_t *pBuff, uint16_t BuffLen)
 //==============================================================================
 // Процедура передаёт массив данных в ssd1306
 //==============================================================================
-void SSD1306_SendData(uint8_t *pBuff, uint16_t BuffLen)
+static void SendData(uint8_t *pBuff, uint16_t BuffLen)
 {
-#if (SSD1306_IfMode == SSD1306_IfMode_I2C)
+#if (IfMode == IfMode_I2C)
   uint8_t tmpBuff = 0x40;    // Control byte (Co = 0, D/A = 1)
   
-  int8_t err = i2cm_Start(SSD1306_I2C_periph, SSD1306_I2C_addr, 0, SSD1306_I2C_timeout);
+  int8_t err = i2cm_Start(I2C_periph, I2C_addr, 0, I2C_timeout);
   if (!err)
   {
-    i2cm_WriteBuff(SSD1306_I2C_periph, &tmpBuff, 1, SSD1306_I2C_timeout);
-    i2cm_WriteBuff(SSD1306_I2C_periph, pBuff, BuffLen, SSD1306_I2C_timeout);
+    i2cm_WriteBuff(I2C_periph, &tmpBuff, 1, I2C_timeout);
+    i2cm_WriteBuff(I2C_periph, pBuff, BuffLen, I2C_timeout);
   }
-  i2cm_Stop(SSD1306_I2C_periph, SSD1306_I2C_timeout);
-#elif (SSD1306_IfMode == SSD1306_IfMode_SPI_4w)       // Параметры работы по SPI-4w
-  SSD1306_DC_HIGH();
-  SSD1306_CS_LOW();
-  SPI_send8b(SSD1306_SPI_periph, pBuff, BuffLen);
-  SSD1306_CS_HIGH();
-  SSD1306_DC_LOW();
+  i2cm_Stop(I2C_periph, I2C_timeout);
+#elif (IfMode == IfMode_SPI_4w)       // Параметры работы по SPI-4w
+  DC_HIGH();
+  CS_LOW();
+  SPI_send8b(SPI_periph, pBuff, BuffLen);
+  CS_HIGH();
+  DC_LOW();
 #else  
   // Остальные интерфейсы работы с ssd1306 пока не поддерживаются
 #endif
@@ -101,9 +187,9 @@ void SSD1306_SendData(uint8_t *pBuff, uint16_t BuffLen)
 //==============================================================================
 void SSD1306_DisplayFullUpdate(uint8_t *pBuff, uint16_t BuffLen)
 {
-  SSD1306_SetColumns(0, SSD1306_Width - 1);
-  SSD1306_SetPages(0, (SSD1306_Height >> 3) - 1);
-  SSD1306_SendData(pBuff, BuffLen);
+  SSD1306_SetColumns(0, Width - 1);
+  SSD1306_SetPages(0, (Height >> 3) - 1);
+  SendData(pBuff, BuffLen);
 }
 //==============================================================================
 
@@ -116,7 +202,7 @@ void SSD1306_SetMemAdressingMode(uint8_t Mode)
   if (Mode > 2)
     return;
   
-  SSD1306_SendCommand(SSD1306_CMD_SetMemAdressingMode | Mode , 0, 0);
+  SendCommand(CMD_SetMemAdressingMode | Mode , 0, 0);
 }
 //==============================================================================
 
@@ -130,7 +216,7 @@ void SSD1306_SetColumns(uint8_t Start, uint8_t End)
   Start &= 0x7F;
   End &= 0x7F;
   uint8_t Buff[] = {Start, End};
-  SSD1306_SendCommand(SSD1306_CMD_SetColumnAddr, Buff, 2);
+  SendCommand(CMD_SetColumnAddr, Buff, 2);
 }
 //==============================================================================
 
@@ -144,7 +230,7 @@ void SSD1306_SetPages(uint8_t Start, uint8_t End)
   Start &= 0x07;
   End &= 0x07;
   uint8_t Buff[] = {Start, End};
-  SSD1306_SendCommand(SSD1306_CMD_SetPageAddr, Buff, 2);
+  SendCommand(CMD_SetPageAddr, Buff, 2);
 }
 //==============================================================================
 
@@ -156,7 +242,7 @@ void SSD1306_SetPages(uint8_t Start, uint8_t End)
 void SSD1306_PageAddrMode_SetPage(uint8_t Page)
 {
   Page &= 0x07;
-  SSD1306_SendCommand(SSD1306_CMD_PageAddrMode_SetPage | Page, 0, 0);
+  SendCommand(CMD_PageAddrMode_SetPage | Page, 0, 0);
 }
 //==============================================================================
 
@@ -168,8 +254,8 @@ void SSD1306_PageAddrMode_SetPage(uint8_t Page)
 void SSD1306_PageAddrMode_StartColumn(uint8_t Start)
 {
   Start &= 0x7F;
-  SSD1306_SendCommand(SSD1306_CMD_PageAddrMode_StartColumnLo | (Start & 0x07), 0, 0);
-  SSD1306_SendCommand(SSD1306_CMD_PageAddrMode_StartColumnHi | (Start >> 4), 0, 0);
+  SendCommand(CMD_PageAddrMode_StartColumnLo | (Start & 0x07), 0, 0);
+  SendCommand(CMD_PageAddrMode_StartColumnHi | (Start >> 4), 0, 0);
 }
 //==============================================================================
 
@@ -180,7 +266,7 @@ void SSD1306_PageAddrMode_StartColumn(uint8_t Start)
 void SSD1306_SetDisplayStartLine(uint8_t Line)
 {
   Line &= 0x3F;
-  SSD1306_SendCommand(SSD1306_CMD_SetDisplayStartLine | Line, 0, 0);
+  SendCommand(CMD_SetDisplayStartLine | Line, 0, 0);
 }
 //==============================================================================
 
@@ -192,7 +278,7 @@ void SSD1306_SetDisplayStartLine(uint8_t Line)
 void SSD1306_SetSegmentRemap(uint8_t Value)
 {
   Value = Value ? 1 : 0;
-  SSD1306_SendCommand(SSD1306_CMD_SetSegmentRemap | Value, 0, 0);
+  SendCommand(CMD_SetSegmentRemap | Value, 0, 0);
 }
 //==============================================================================
 
@@ -202,7 +288,7 @@ void SSD1306_SetMultiplexRatio(uint8_t Mux)
 {
   Mux--;
   Mux &= 0x3F;
-  SSD1306_SendCommand(SSD1306_CMD_SetMultiplexRatio, &Mux, 1);
+  SendCommand(CMD_SetMultiplexRatio, &Mux, 1);
 }
 //==============================================================================
 
@@ -212,7 +298,7 @@ void SSD1306_SetMultiplexRatio(uint8_t Mux)
 //==============================================================================
 void SSD1306_SetDisplayOffset(uint8_t Offset)
 {
-  SSD1306_SendCommand(SSD1306_CMD_SetDisplayOffset, &Offset, 1);
+  SendCommand(CMD_SetDisplayOffset, &Offset, 1);
 }
 //==============================================================================
 
@@ -223,7 +309,7 @@ void SSD1306_SetDisplayClockDivider(uint8_t DCLKdiv, uint8_t Fosc)
   DCLKdiv--;
   DCLKdiv &= 0x0F;
   DCLKdiv |= ((Fosc & 0x0F) << 4);
-  SSD1306_SendCommand(SSD1306_CMD_SetDisplayClockDivider, &DCLKdiv, 1);
+  SendCommand(CMD_SetDisplayClockDivider, &DCLKdiv, 1);
 }
 //==============================================================================
 
@@ -232,7 +318,7 @@ void SSD1306_SetDisplayClockDivider(uint8_t DCLKdiv, uint8_t Fosc)
 void SSD1306_ChargePumpSetting(uint8_t Value)
 {
   Value = Value ? 0x14 : 0x10;
-  SSD1306_SendCommand(SSD1306_CMD_ChargePumpSetting, &Value, 1);
+  SendCommand(CMD_ChargePumpSetting, &Value, 1);
 }
 //==============================================================================
 
@@ -246,7 +332,7 @@ void SSD1306_ChargePumpSetting(uint8_t Value)
 void SSD1306_SetCOMoutScanDirection(uint8_t Value)
 {
   Value = Value ? 0x08 : 0x00;
-  SSD1306_SendCommand(SSD1306_CMD_SetCOMoutScanDirection | Value, 0, 0);
+  SendCommand(CMD_SetCOMoutScanDirection | Value, 0, 0);
 }
 //==============================================================================
 
@@ -260,11 +346,14 @@ void SSD1306_SetCOMoutScanDirection(uint8_t Value)
 void SSD1306_SetCOMPinsConfig(uint8_t AltCOMpinConfig, uint8_t LeftRightRemap)
 {
   uint8_t tmpValue = (1 << 1);
+  
   if (AltCOMpinConfig)
     tmpValue |= (1 << 4);
+  
   if (LeftRightRemap)
     tmpValue |= (1 << 5);
-  SSD1306_SendCommand(SSD1306_CMD_SetCOMPinsConfig, &tmpValue, 1);
+  
+  SendCommand(CMD_SetCOMPinsConfig, &tmpValue, 1);
 }
 //==============================================================================
 
@@ -274,12 +363,16 @@ void SSD1306_SetPrechargePeriod(uint8_t Phase1period, uint8_t Phase2period)
 {
   Phase1period &= 0x0F;
   Phase1period &= 0x0F;
+  
   if (!Phase1period)
     Phase1period = 2;
+  
   if (!Phase2period)
     Phase2period = 2;
+  
   Phase1period |= (Phase2period << 4);
-  SSD1306_SendCommand(SSD1306_CMD_SetPrechargePeriod, &Phase1period, 1);
+  
+  SendCommand(CMD_SetPrechargePeriod, &Phase1period, 1);
 }
 //==============================================================================
 
@@ -288,7 +381,7 @@ void SSD1306_SetPrechargePeriod(uint8_t Phase1period, uint8_t Phase2period)
 void SSD1306_SetVCOMHDeselectLevel(uint8_t Code)
 {
   Code &= 0x70;
-  SSD1306_SendCommand(SSD1306_CMD_SetVCOMHDeselectLevel, &Code, 1);
+  SendCommand(CMD_SetVCOMHDeselectLevel, &Code, 1);
 }
 //==============================================================================
 
@@ -298,7 +391,7 @@ void SSD1306_SetVCOMHDeselectLevel(uint8_t Code)
 //==============================================================================
 void SSD1306_DeactivateScroll(void)
 {
-  SSD1306_SendCommand(SSD1306_CMD_DeactivateScroll, 0, 0);
+  SendCommand(CMD_DeactivateScroll, 0, 0);
 }
 //==============================================================================
 
@@ -308,7 +401,7 @@ void SSD1306_DeactivateScroll(void)
 //==============================================================================
 void SSD1306_Sleep(void)
 {
-  SSD1306_SendCommand(SSD1306_CMD_Sleep, 0, 0);
+  SendCommand(CMD_Sleep, 0, 0);
 }
 //==============================================================================
 
@@ -318,7 +411,7 @@ void SSD1306_Sleep(void)
 //==============================================================================
 void SSD1306_Wake(void)
 {
-  SSD1306_SendCommand(SSD1306_CMD_Wake, 0, 0);
+  SendCommand(CMD_Wake, 0, 0);
 }
 //==============================================================================
 
@@ -328,7 +421,7 @@ void SSD1306_Wake(void)
 //==============================================================================
 void SSD1306_AllPixOn(void)
 {
-  SSD1306_SendCommand(SSD1306_CMD_AllPixOn, 0, 0);
+  SendCommand(CMD_AllPixOn, 0, 0);
 }
 //==============================================================================
 
@@ -338,7 +431,7 @@ void SSD1306_AllPixOn(void)
 //==============================================================================
 void SSD1306_AllPixRAM(void)
 {
-  SSD1306_SendCommand(SSD1306_CMD_AllPixRAM, 0, 0);
+  SendCommand(CMD_AllPixRAM, 0, 0);
 }
 //==============================================================================
 
@@ -348,7 +441,7 @@ void SSD1306_AllPixRAM(void)
 //==============================================================================
 void SSD1306_SetInverseOn(void)
 {
-  SSD1306_SendCommand(SSD1306_CMD_SetInverseOn, 0, 0);
+  SendCommand(CMD_SetInverseOn, 0, 0);
 }
 //==============================================================================
 
@@ -358,7 +451,7 @@ void SSD1306_SetInverseOn(void)
 //==============================================================================
 void SSD1306_SetInverseOff(void)
 {
-  SSD1306_SendCommand(SSD1306_CMD_SetInverseOff, 0, 0);
+  SendCommand(CMD_SetInverseOff, 0, 0);
 }
 //==============================================================================
 
@@ -368,7 +461,7 @@ void SSD1306_SetInverseOff(void)
 //==============================================================================
 void SSD1306_SetContrast(uint8_t Value)
 {
-  SSD1306_SendCommand(SSD1306_CMD_SetContrast, &Value, 1);
+  SendCommand(CMD_SetContrast, &Value, 1);
 }
 //==============================================================================
 
@@ -376,28 +469,28 @@ void SSD1306_SetContrast(uint8_t Value)
 //==============================================================================
 // Процедура настройки ножек микроконтроллера для обмена с дисплеем
 //==============================================================================
-void SSD1306_GPIO_init(void)
+static void GPIO_init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct;
   GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_InitStruct.GPIO_Mode = GPIO_Mode_Out_PP;
   
-#if (SSD1306_ResetPinUsed)      // Включено управление ножкой reset ssd1306
-  gpio_PortClockStart(SSD1306_Reset_Port);
-  GPIO_InitStruct.GPIO_Pin = SSD1306_Reset_Pin;
-  GPIO_Init(SSD1306_Reset_Port, &GPIO_InitStruct);
+#if (ResetPinUsed)      // Включено управление ножкой reset ssd1306
+  gpio_PortClockStart(Reset_Port);
+  GPIO_InitStruct.GPIO_Pin = Reset_Pin;
+  GPIO_Init(Reset_Port, &GPIO_InitStruct);
 #endif
   
-#if (SSD1306_CSPinUsed)
-  gpio_PortClockStart(SSD1306_CS_Port);
-  GPIO_InitStruct.GPIO_Pin = SSD1306_CS_Pin;
-  GPIO_Init(SSD1306_CS_Port, &GPIO_InitStruct);
+#if (CSPinUsed)
+  gpio_PortClockStart(CS_Port);
+  GPIO_InitStruct.GPIO_Pin = CS_Pin;
+  GPIO_Init(CS_Port, &GPIO_InitStruct);
 #endif
   
-#if (SSD1306_IfMode == SSD1306_IfMode_SPI_4w)       // Работаем по SPI-4w
-  gpio_PortClockStart(SSD1306_DC_Port);
-  GPIO_InitStruct.GPIO_Pin = SSD1306_DC_Pin;
-  GPIO_Init(SSD1306_DC_Port, &GPIO_InitStruct);
+#if (IfMode == IfMode_SPI_4w)       // Работаем по SPI-4w
+  gpio_PortClockStart(DC_Port);
+  GPIO_InitStruct.GPIO_Pin = DC_Pin;
+  GPIO_Init(DC_Port, &GPIO_InitStruct);
 #endif
 }
 //==============================================================================
@@ -406,35 +499,35 @@ void SSD1306_GPIO_init(void)
 //==============================================================================
 // Процедура инициализации дисплея на контроллере ssd1306
 //==============================================================================
-void SSD1306_Init(uint8_t Width, uint8_t Height)
+void SSD1306_Init(uint8_t width, uint8_t height)
 {
-  SSD1306_Width = Width;
-  SSD1306_Height = Height;
+  Width = width;
+  Height = height;
   
-  SSD1306_GPIO_init();
+  GPIO_init();
   
   // Инициализация интерфейса
-#if (SSD1306_IfMode == SSD1306_IfMode_I2C)      // I2C
-  i2cm_init(SSD1306_I2C_periph, SSD1306_I2C_clock);
-#elif (SSD1306_IfMode == SSD1306_IfMode_SPI_4w)       // Параметры работы по SPI-4w
-  spim_init(SSD1306_SPI_periph, 8);
+#if (IfMode == IfMode_I2C)      // I2C
+  i2cm_init(I2C_periph, I2C_clock);
+#elif (IfMode == IfMode_SPI_4w)       // Параметры работы по SPI-4w
+  spim_init(SPI_periph, 8);
 #else 
   // Остальные интерфейсы работы с ssd1306 пока не поддерживаются
 #endif
 
   // Сброс контроллера дисплея ssd1306 ножкой Reset
-#if (SSD1306_ResetPinUsed)      // Включено управление ножкой reset ssd1306
-  SSD1306_RESET_HIGH();
+#if (ResetPinUsed)      // Включено управление ножкой reset ssd1306
+  RESET_HIGH();
   delay_ms(2);
-  SSD1306_RESET_LOW();  // Роняем ножку reset в 0 на 10 мс
+  RESET_LOW();  // Роняем ножку reset в 0 на 10 мс
   delay_ms(15);
-  SSD1306_RESET_HIGH();
+  RESET_HIGH();
 #endif
   
   // Шлём команды инициализации ssd1306
   SSD1306_Sleep();
   SSD1306_SetDisplayClockDivider(1, 8);
-  SSD1306_SetMultiplexRatio(SSD1306_Height);
+  SSD1306_SetMultiplexRatio(Height);
   SSD1306_SetDisplayOffset(0);
   SSD1306_SetDisplayStartLine(0);
   SSD1306_ChargePumpSetting(1);
@@ -442,11 +535,11 @@ void SSD1306_Init(uint8_t Width, uint8_t Height)
   SSD1306_SetSegmentRemap(0);           // *меняет направление заполнение матрицы из буфера кадра (вертикаль/горизонталь)
   SSD1306_SetCOMoutScanDirection(0);    // *переворачивает оторбражение на матрице (только по вертикали)
   
-  if ((SSD1306_Width == 128) && (SSD1306_Height == 32))
+  if ((Width == 128) && (Height == 32))
     SSD1306_SetCOMPinsConfig(0, 0);
-  else  if ((SSD1306_Width == 128) && (SSD1306_Height == 64))
+  else  if ((Width == 128) && (Height == 64))
     SSD1306_SetCOMPinsConfig(1, 0);
-  else  if ((SSD1306_Width == 96) && (SSD1306_Height == 16))
+  else  if ((Width == 96) && (Height == 16))
     SSD1306_SetCOMPinsConfig(0, 0);
   
   SSD1306_SetContrast(127);

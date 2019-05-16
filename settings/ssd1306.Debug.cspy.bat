@@ -21,11 +21,11 @@
 
 @echo off 
 
-if not "%1" == "" goto debugFile 
+if not "%~1" == "" goto debugFile 
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\common\bin\cspybat" -f "D:\disk\WorkMC\ssd1306\stm32f1\settings\ssd1306.Debug.general.xcl" --backend -f "D:\disk\WorkMC\ssd1306\stm32f1\settings\ssd1306.Debug.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\common\bin\cspybat" -f "D:\YandexDisk\WorkMC\ssd1306\stm32f1\settings\ssd1306.Debug.general.xcl" --backend -f "D:\YandexDisk\WorkMC\ssd1306\stm32f1\settings\ssd1306.Debug.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\common\bin\cspybat" -f "D:\disk\WorkMC\ssd1306\stm32f1\settings\ssd1306.Debug.general.xcl" "--debug_file=%1" --backend -f "D:\disk\WorkMC\ssd1306\stm32f1\settings\ssd1306.Debug.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\common\bin\cspybat" -f "D:\YandexDisk\WorkMC\ssd1306\stm32f1\settings\ssd1306.Debug.general.xcl" "--debug_file=%~1" --backend -f "D:\YandexDisk\WorkMC\ssd1306\stm32f1\settings\ssd1306.Debug.driver.xcl" 
 
 @echo off 
 :end

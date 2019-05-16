@@ -38,7 +38,7 @@ void spim_init(SPI_TypeDef* SPIx, uint8_t WordLen)
   SPI_InitStruct.SPI_CPOL = SPI_CPOL_Low;
   SPI_InitStruct.SPI_CPHA = SPI_CPHA_1Edge;
   SPI_InitStruct.SPI_NSS = SPI_NSS_Soft;
-  SPI_InitStruct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_16;
+  SPI_InitStruct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_8;
   SPI_InitStruct.SPI_FirstBit = SPI_FirstBit_MSB;
   SPI_InitStruct.SPI_CRCPolynomial = 0x7;
   SPI_Init(SPIx, &SPI_InitStruct);
@@ -111,6 +111,7 @@ void SPI_recv16b(SPI_TypeDef* SPIx, uint16_t *pBuff, uint16_t Len)
 {
   for (uint16_t i = 0; i < Len; i++)
   {
+    SPI_I2S_SendData(SPIx, 0xFFFF);
     while (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) ;
     *(pBuff++) = SPI_I2S_ReceiveData(SPIx);
   }
@@ -124,6 +125,7 @@ void SPI_recv8b(SPI_TypeDef* SPIx, uint8_t *pBuff, uint16_t Len)
 {
   for (uint16_t i = 0; i < Len; i++)
   {
+    SPI_I2S_SendData(SPIx, 0xFF);
     while (SPI_I2S_GetFlagStatus(SPIx, SPI_I2S_FLAG_TXE) == RESET) ;
     *(pBuff++) = SPI_I2S_ReceiveData(SPIx);
   }

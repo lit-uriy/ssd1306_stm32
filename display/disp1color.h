@@ -38,14 +38,21 @@ void disp1color_UpdateFromBuff(void);
 void disp1color_DrawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2);
 // Процедура рисует прямоугольник в буфере кадра дисплея
 void disp1color_DrawRectangle(int16_t x1, int16_t y1, int16_t x2, int16_t y2);
+// Процедура рисует закрашенный прямоугольник на дисплее
+void disp1color_DrawRectangleFilled(int16_t x1, int16_t y1, int16_t x2, int16_t y2);
 // Процедура рисует окружность в буфере кадра дисплея. x0 и y0 - координаты центра окружности
 void disp1color_DrawCircle(int16_t x0, int16_t y0, int16_t radius);
 
 // Функция вывода символа Char на дисплей. Возвращает ширину выведенного символа
 uint8_t disp1color_DrawChar(uint8_t X, uint8_t Y, uint8_t FontID, uint8_t Char);
 // Функция вывода текста из строки Str на дисплей
-void disp1color_DrawString(uint8_t X, uint8_t Y, uint8_t FontID, uint8_t *Str);
+int16_t disp1color_DrawString(uint8_t X, uint8_t Y, uint8_t FontID, uint8_t *Str);
 // Процедура выводит на дисплей форматированную строку
-void disp1color_printf(uint8_t X, uint8_t Y, uint8_t FontID, const char *args, ...);
+int16_t disp1color_printf(uint8_t X, uint8_t Y, uint8_t FontID, const char *args, ...);
+
+// Функция возвращает ширину строки в пикселях
+int16_t dispcolor_getStrWidth(uint8_t FontID, char *Str);
+// Функция возвращает ширину форматированной строки в пикселях
+int16_t dispcolor_getFormatStrWidth(uint8_t FontID, const char *args, ...);
 
 #endif
